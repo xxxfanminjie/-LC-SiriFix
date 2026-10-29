@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
+#import <Intents/Intents.h>
 
 static void swizzleClassMethod(Class cls, SEL origSel, SEL newSel) {
     if (!cls || !origSel || !newSel) return;
