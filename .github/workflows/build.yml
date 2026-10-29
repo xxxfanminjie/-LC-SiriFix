@@ -1,17 +1,25 @@
-name: Build dylib
+name: Build Dylib
 on:
   push:
-  workflow_dispatch:
+    branches: [ main ]
 jobs:
   build:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Compile
+
+      - name: Select Xcode
         run: |
-          clang -arch arm64 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -mios-version-min=15.0 -dynamiclib BypassSiriCrash.m -o BypassSiriCrash.dylib -framework Foundation
-      - name: Upload
+          sudo xcode-select -s /Applications/Xcode_15.2.app/Contents/Developer
+      - name: Compile dylib
+        run: |
+          xcrun clang -arch arm64 -arch arm64e \
+          -isysroot $(xcrun -sdk iphoneos --show-sdk-path) \
+          -fobjc-arc -dynamiclib \
+          BypassSiriCrash.m \
+          -o BypassSiriCrash.dylib
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BypassSiriCrash
+          name: BypassSiriCrash-dylib
           path: BypassSiriCrash.dylib
