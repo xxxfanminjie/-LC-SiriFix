@@ -1,39 +1,76 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
-void swizzleMethod(Class class, SEL originalSelector, SEL swizzledSelector) {
-    Method originalMethod = class_getClassMethod(class, originalSelector);
-    Method swizzledMethod = class_getClassMethod(class, swizzledSelector);
-    if (originalMethod && swizzledMethod) {
-        method_exchangeImplementations(originalMethod, swizzledMethod);
+static void swizzleClassMethod(Class cls, SEL origSel, SEL newSel) {
+    if (!cls || !origSel || !newSel) return;
+    Method origM = class_getClassMethod(cls, origSel);
+    Method newM = class_getClassMethod(cls, newSel);
+    if (origM && newM) {
+        method_exchangeImplementations(origM, newM);
     }
 }
 
-@interface NSObject (BypassSiriCrash)
-+ (id)fake_sharedVocabulary;
-+ (id)fake_alloc;
+static void swizzleInstanceMethod(Class cls, SEL origSel, SEL newSel) {
+    if (!cls || !origSel || !newSel) return;
+    Method origM = class_getInstanceMethod(cls, origSel);
+    Method newM = class_getInstanceMethod(cls, newSel);
+    if (origM && newM) {
+        method_exchangeImplementations(origM, newM);
+    }
+}
+
+// 专门给 INVocabulary 使用的分类
+@interface INVocabulary (SiriFix)
++ (id)bypass_sharedVocabulary;
++ (id)bypass_alloc;
 @end
 
-@implementation NSObject (BypassSiriCrash)
-+ (id)fake_sharedVocabulary {
-    NSLog(@"[BypassSiri] hooked sharedVocabulary, return nil");
+@implementation INVocabulary (SiriFix)
++ (id)bypass_sharedVocabulary {
+    NSLog(@"[BypassSiriFix] Hooked INVocabulary sharedVocabulary, return nil");
     return nil;
 }
-+ (id)fake_alloc {
-    NSLog(@"[BypassSiri] hooked INVocabulary alloc, return nil");
++ (id)bypass_alloc {
+    NSLog(@"[BypassSiriFix] Hooked INVocabulary alloc, return nil");
     return nil;
 }
 @end
 
-__attribute__((constructor)) static void init() {
+// 专门给 INPreferences 使用的分类
+@interface INPreferences (SiriFix)
++ (id)bypass_alloc;
+- (id)bypass_init;
+@end
+
+@implementation INPreferences (SiriFix)
++ (id)bypass_alloc {
+    NSLog(@"[BypassSiriFix] Hooked INPreferences alloc, return nil");
+    return nil;
+}
+- (id)bypass_init {
+    NSLog(@"[BypassSiriFix] Hooked INPreferences init, return nil");
+    return nil;
+}
+@end
+
+__attribute__((constructor)) static void BypassSiriCrashInit() {
     @autoreleasepool {
-        Class invClass = NSClassFromString(@"INVocabulary");
-        if (!invClass) {
-            NSLog(@"[BypassSiri] INVocabulary class not found");
-            return;
+        Class clsVoc = NSClassFromString(@"INVocabulary");
+        if (clsVoc) {
+            NSLog(@"[BypassSiriFix] Found INVocabulary, swizzle start");
+            swizzleClassMethod(clsVoc, @selector(sharedVocabulary), @selector(bypass_sharedVocabulary));
+            swizzleClassMethod(clsVoc, @selector(alloc), @selector(bypass_alloc));
+        } else {
+            NSLog(@"[BypassSiriFix] INVocabulary NOT found");
         }
-        NSLog(@"[BypassSiri] find INVocabulary, start swizzle");
-        swizzleMethod(invClass, @selector(sharedVocabulary), @selector(fake_sharedVocabulary));
-        swizzleMethod(invClass, @selector(alloc), @selector(fake_alloc));
+
+        Class clsPref = NSClassFromString(@"INPreferences");
+        if (clsPref) {
+            NSLog(@"[BypassSiriFix] Found INPreferences, swizzle start");
+            swizzleClassMethod(clsPref, @selector(alloc), @selector(bypass_alloc));
+            swizzleInstanceMethod(clsPref, @selector(init), @selector(bypass_init));
+        } else {
+            NSLog(@"[BypassSiriFix] INPreferences NOT found");
+        }
     }
 }
