@@ -18,6 +18,7 @@ jobs:
           -fobjc-arc -dynamiclib \
           BypassSiriCrash.m \
           -o BypassSiriCrash.dylib
+          -framework Intents
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
